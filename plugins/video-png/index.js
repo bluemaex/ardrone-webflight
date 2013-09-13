@@ -26,15 +26,13 @@ function video(name, deps) {
     deps.client.getPngStream()
         .on('error', console.log)
         .on('data', function(frame) {
-        latestImage = frame;
-        detectFacesOpenCv();
-    });
+            detectFacesOpenCv(frame);
+        });
 
-    var face_detect = require('face-detect');
     var Canvas = require('canvas')
     , Image = Canvas.Image
     , canvas = new Canvas(640,360)
-    , ctx = canvas.getContext('2d');
+    , ctx = canvas.getContext('2d')
     , img = new Image
     , troll = new Image;
 
@@ -43,30 +41,35 @@ function video(name, deps) {
       troll.src = _troll;
     });
 
-    var detectFacesOpenCv = function() {
-        if ((!processingImage) && latestImage) {
+    var detectFacesOpenCv = function(image) {
+        if ((!processingImage) && image) {
             processingImage = true;
-            cv.readImage(latestImage, function(err, im) {
-                var opts = {};
+            cv.readImage(image, function(err, im) {
+                var opts = {}, hasFaces = false;
                 face_cascade.detectMultiScale(im, function(err, faces) {
-
                     var face;
-                    var biggestFace;
 
-                    img.src = latestImage;
-                    ctx.drawImage(img, 0, 0, img.width, img.height);
+                    if(faces.length > 0) {
+                        img.src = image;
+                        ctx.drawImage(img, 0, 0, img.width, img.height);
 
-                    for (var k = 0; k < faces.length; k++) {
-                        face = faces[k];
-                        if (!biggestFace || biggestFace.width < face.width) biggestFace = face;
-                        console.warn(!biggestFace, biggestFace.width < face.width);
+                        for (var k = 0; k < faces.length; k++) {
+                            face = faces[k];
 
-                        ctx.drawImage(troll, face.x, face.y, face.width, face.height);
+                            if (face.width > 70) {
+                                ctx.drawImage(troll, face.x, face.y, face.width, face.height);
+                                hasFaces = true;
+                            }
+                        }
                     }
 
-                    latestImage = canvas.toBuffer();
                     processingImage = false;
 
+                    if (hasFaces) {
+                        latestImage = canvas.toBuffer();
+                    } else {
+                        latestImage = image;
+                    }
                 }, opts.scale, opts.neighbors, opts.min && opts.min[0], opts.min && opts.min[1]);
             });
         };
