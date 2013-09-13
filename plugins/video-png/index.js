@@ -34,12 +34,35 @@ function video(name, deps) {
     , canvas = new Canvas(640,360)
     , ctx = canvas.getContext('2d')
     , img = new Image
-    , troll = new Image;
+    , troll = new Image
+    , lastFaces = [];
 
     fs.readFile(__dirname + '/image.png', function(err, _troll){
       if (err) throw err;
       troll.src = _troll;
     });
+
+    var getResultingFaces = function(newarr, oldarr) {
+        var unique = true,
+            result = newarr,
+            now = Date.now();
+
+        for (var i = 0; i < oldarr.length; i++) {
+            unique = true;
+            for (var k = 0; k < newarr.length; k++) {
+                if (Math.abs(oldarr[i].x - newarr[k].x) < 30)
+                unique = false;
+            }
+            if (unique) {
+                if (!oldarr[i].ts || (oldarr[i].ts && now - oldarr[i].ts < 100)) {
+                    oldarr[i].ts = now;
+                    result.push(oldarr[i]);
+                }
+            }
+        }
+
+        return result;
+    };
 
     var detectFacesOpenCv = function(image) {
         if ((!processingImage) && image) {
@@ -48,13 +71,14 @@ function video(name, deps) {
                 var opts = {}, hasFaces = false;
                 face_cascade.detectMultiScale(im, function(err, faces) {
                     var face;
+                    lastFaces = getResultingFaces(faces, lastFaces);
 
-                    if(faces.length > 0) {
+                    if(lastFaces.length > 0) {
                         img.src = image;
                         ctx.drawImage(img, 0, 0, img.width, img.height);
 
-                        for (var k = 0; k < faces.length; k++) {
-                            face = faces[k];
+                        for (var k = 0; k < lastFaces.length; k++) {
+                            face = lastFaces[k];
 
                             if (face.width > 70) {
                                 ctx.drawImage(troll, face.x, face.y, face.width, face.height);
